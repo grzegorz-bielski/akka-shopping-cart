@@ -3,6 +3,8 @@ target/
 .settings
 .project
 .classpath
+project/**/metals.sbt
+.vscode
 
 .idea
 *.iml
