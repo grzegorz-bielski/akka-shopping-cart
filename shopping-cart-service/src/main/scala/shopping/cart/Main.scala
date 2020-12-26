@@ -21,6 +21,8 @@ class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](con
   AkkaManagement(system).start()
   ClusterBootstrap(system).start()
 
+  ShoppingCart.start(system)
+
   val grpcInterface = system.settings.config.getString("shopping-cart-service.grpc.interface")
   val grpcPort = system.settings.config.getInt("shopping-cart-service.grpc.port")
   val grpcService = new ShoppingCartServiceImpl
