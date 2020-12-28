@@ -25,7 +25,7 @@ class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](con
 
   val grpcInterface = system.settings.config.getString("shopping-cart-service.grpc.interface")
   val grpcPort = system.settings.config.getInt("shopping-cart-service.grpc.port")
-  val grpcService = new ShoppingCartServiceImpl
+  val grpcService = new ShoppingCartServiceImpl(system)
 
   SoppingCartServer.start(grpcInterface, grpcPort, system, grpcService)
 
