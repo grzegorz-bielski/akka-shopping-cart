@@ -49,7 +49,7 @@ object ShoppingCart {
   // init
   val EntityKey = EntityTypeKey[Command]("ShoppingCart")
 
-  def start(system: ActorSystem[_]) =
+  def init(system: ActorSystem[_]) =
     ClusterSharding(system).init(Entity(EntityKey)(ctx => ShoppingCart(ctx.entityId)))
 
   def apply(cartId: String) =
