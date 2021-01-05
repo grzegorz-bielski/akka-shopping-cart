@@ -36,22 +36,54 @@ class ShoppingCartSpec
   "The Shopping Cart" should {
     "add item" in {
       val result =
-        eventSourcedTestKit.runCommand(replyTo => ShoppingCart.AddItem("abcd", 42, replyTo))
+        eventSourcedTestKit.runCommand(ShoppingCart.AddItem("abcd", 42, _))
 
-      result.reply shouldEqual StatusReply.Success(ShoppingCart.Summary(Map("abcd" -> 42)))
+      result.reply shouldEqual StatusReply.Success(
+        ShoppingCart.Summary(Map("abcd" -> 42), isCheckedOut = false))
       result.event shouldEqual ShoppingCart.ItemAdded(cartId, "abcd", 42)
+    }
+
+    "checkout" in {
+      eventSourcedTestKit
+        .runCommand(ShoppingCart.AddItem("foo", 42, _))
+        .reply
+        .isSuccess shouldBe true
+
+      val res =
+        eventSourcedTestKit.runCommand(ShoppingCart.Checkout(_))
+      res.reply shouldEqual StatusReply.Success(
+        ShoppingCart.Summary(Map("foo" -> 42), isCheckedOut = true))
+
+      res.event.asInstanceOf[ShoppingCart.CheckedOut].cartId shouldBe cartId
+
+      eventSourcedTestKit
+        .runCommand(ShoppingCart.AddItem("bar", 13, _))
+        .reply
+        .isSuccess shouldBe false
     }
 
     "reject already added item" in {
       eventSourcedTestKit
-        .runCommand(replyTo => ShoppingCart.AddItem("abcd", 42, replyTo))
+        .runCommand(ShoppingCart.AddItem("abcd", 42, _))
         .reply
         .isSuccess shouldBe true
 
       eventSourcedTestKit
-        .runCommand(replyTo => ShoppingCart.AddItem("abcd", 44, replyTo))
+        .runCommand(ShoppingCart.AddItem("abcd", 44, _))
         .reply
         .isSuccess shouldBe false
+    }
+
+    "get" in {
+
+      eventSourcedTestKit
+        .runCommand(ShoppingCart.AddItem("foo", 42, _))
+        .reply
+        .isSuccess shouldBe true
+
+      eventSourcedTestKit.runCommand(ShoppingCart.Get(_)).reply shouldEqual ShoppingCart.Summary(
+        Map("foo" -> 42),
+        isCheckedOut = false)
     }
   }
 }
