@@ -9,6 +9,7 @@ import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.scaladsl.AkkaManagement
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
 
+// ## write
 // (outside)
 // -------grpc----->
 // <server>
@@ -18,6 +19,14 @@ import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
 // ----msg(event)-->
 // - event log (cassandra)
 // - update projections (cassandra)
+
+// ## read
+// (outside)
+// -------grpc----->
+// <server>
+// <shopping cart service>
+// ( --msg(command ?)--> ) |  selectOne
+// (<persistent actor> )   |  <cassandra connection>
 
 object Main {
   def main(args: Array[String]): Unit =
@@ -31,7 +40,10 @@ class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](con
 
   initCluster(system)
   initActors(system)
-  val popularityRepo = initProjections(system)
+
+  val popularityRepo = initRepositories(system)
+
+  initProjections(system, popularityRepo)
   initGrpcServer(system, popularityRepo)
 
   override def onMessage(msg: Nothing): Behavior[Nothing] = this
@@ -53,15 +65,17 @@ class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](con
     ShoppingCart.init(system) // persistent actor
   }
 
-  private def initProjections(system: ActorSystem[_]) = {
+  private def initRepositories(system: ActorSystem[_]) = {
     implicit val ec = system.executionContext
     val session = CassandraSessionRegistry(system).sessionFor("akka.persistence.cassandra")
     val keySpace =
       system.settings.config.getString("akka.projection.cassandra.offset-store.keyspace")
-    val repository = new ItemPopularityRepositoryImpl(session, keySpace)
 
+    new ItemPopularityRepositoryImpl(session, keySpace)
+  }
+
+  private def initProjections(system: ActorSystem[_], repository: ItemPopularityRepository) = {
     ItemPopularityProjection.init(system, repository)
-
-    repository
+    PublishEventsProjection.init(system)
   }
 }

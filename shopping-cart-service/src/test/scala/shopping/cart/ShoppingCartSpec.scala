@@ -23,10 +23,11 @@ class ShoppingCartSpec
     with BeforeAndAfterEach {
 
   private val cartId = "testCardId"
+  private val projectionTag = "testProjectionTag"
   private val eventSourcedTestKit =
     EventSourcedBehaviorTestKit[ShoppingCart.Command, ShoppingCart.Event, ShoppingCart.State](
       system,
-      ShoppingCart(cartId))
+      ShoppingCart(cartId, projectionTag))
 
   override protected def beforeEach() = {
     super.beforeEach()
