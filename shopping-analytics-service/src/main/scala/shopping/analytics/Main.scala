@@ -10,13 +10,12 @@ import akka.management.scaladsl.AkkaManagement
 
 object Main {
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     ActorSystem[Nothing](Main(), "ShoppingAnalyticsService")
-  }
 
-  def apply(): Behavior[Nothing] = {
-    Behaviors.setup[Nothing](context => new Main(context))
-  }
+  def apply(): Behavior[Nothing] =
+    Behaviors.setup[Nothing](new Main(_))
+
 }
 
 class Main(context: ActorContext[Nothing])
@@ -25,6 +24,8 @@ class Main(context: ActorContext[Nothing])
 
   AkkaManagement(system).start()
   ClusterBootstrap(system).start()
+
+  ShoppingCartEventConsumer.init(system)
 
   override def onMessage(msg: Nothing): Behavior[Nothing] =
     this
