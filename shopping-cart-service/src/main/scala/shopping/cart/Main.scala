@@ -8,6 +8,8 @@ import akka.actor.typed.Behavior
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.scaladsl.AkkaManagement
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
+import akka.grpc.GrpcClientSettings
+import shopping.order.proto.ShoppingOrderServiceClient
 
 // ## write
 // (outside)
@@ -38,34 +40,35 @@ object Main {
 class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](context) {
   val system = context.system
 
-  initCluster(system)
-  initActors(system)
+  initCluster()
+  initActors()
 
-  val popularityRepo = initRepositories(system)
+  val itemPopularityRepo = initRepositories()
+  val orderService = initServices()
 
-  initProjections(system, popularityRepo)
-  initGrpcServer(system, popularityRepo)
+  initProjections()
+  initGrpcServer()
 
   override def onMessage(msg: Nothing): Behavior[Nothing] = this
 
-  private def initGrpcServer(system: ActorSystem[_], repo: ItemPopularityRepository) = {
+  protected def initGrpcServer() = {
     val grpcInterface = system.settings.config.getString("shopping-cart-service.grpc.interface")
     val grpcPort = system.settings.config.getInt("shopping-cart-service.grpc.port")
-    val grpcService = new ShoppingCartServiceImpl(system, repo)
+    val grpcService = new ShoppingCartServiceImpl(system, itemPopularityRepo)
 
     SoppingCartServer.start(grpcInterface, grpcPort, system, grpcService)
   }
 
-  private def initCluster(system: ActorSystem[_]) = {
+  protected def initCluster() = {
     AkkaManagement(system).start()
     ClusterBootstrap(system).start()
   }
 
-  private def initActors(system: ActorSystem[_]) = {
+  protected def initActors() = {
     ShoppingCart.init(system) // persistent actor
   }
 
-  private def initRepositories(system: ActorSystem[_]) = {
+  protected def initRepositories() = {
     implicit val ec = system.executionContext
     val session = CassandraSessionRegistry(system).sessionFor("akka.persistence.cassandra")
     val keySpace =
@@ -74,8 +77,19 @@ class Main(context: ActorContext[Nothing]) extends AbstractBehavior[Nothing](con
     new ItemPopularityRepositoryImpl(session, keySpace)
   }
 
-  private def initProjections(system: ActorSystem[_], repository: ItemPopularityRepository) = {
-    ItemPopularityProjection.init(system, repository)
+  protected def initServices() = {
+    val settings = GrpcClientSettings
+      .connectToServiceAt(
+        system.settings.config.getString("shopping-order-service.host"),
+        system.settings.config.getInt("shopping-order-service.port"))(system)
+      .withTls(enabled = false) // should not turned off in prod)
+
+    ShoppingOrderServiceClient(settings)(system)
+  }
+
+  protected def initProjections() = {
+    ItemPopularityProjection.init(system, itemPopularityRepo)
+    SendOrderProjection.init(system, orderService)
     PublishEventsProjection.init(system)
   }
 }

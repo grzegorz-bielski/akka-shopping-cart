@@ -46,12 +46,11 @@ object PublishEventsProjection {
       producer: SendProducer[String, Array[Byte]],
       index: Int) = {
     val tag = ShoppingCart.tags(index)
-    val provider = EventSourcedProvider
-      .eventsByTag[ShoppingCart.Event](system, CassandraReadJournal.Identifier, tag)
 
     CassandraProjection.atLeastOnce(
       projectionId = ProjectionId(name, tag),
-      sourceProvider = provider,
+      sourceProvider = EventSourcedProvider
+        .eventsByTag[ShoppingCart.Event](system, CassandraReadJournal.Identifier, tag),
       handler = () => new PublishEventsProjectionHandler(system, topic, producer))
   }
 }

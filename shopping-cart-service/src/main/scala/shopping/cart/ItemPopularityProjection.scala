@@ -25,12 +25,11 @@ object ItemPopularityProjection {
       repo: ItemPopularityRepository,
       index: Int) = {
     val tag = ShoppingCart.tags(index)
-    val sourceProvider = EventSourcedProvider
-      .eventsByTag[ShoppingCart.Event](system, CassandraReadJournal.Identifier, tag)
 
     CassandraProjection.atLeastOnce(
-      ProjectionId(name, tag),
-      sourceProvider,
+      projectionId = ProjectionId(name, tag),
+      sourceProvider = EventSourcedProvider
+        .eventsByTag[ShoppingCart.Event](system, CassandraReadJournal.Identifier, tag),
       handler = () => new ItemPopularityProjectionHandler(tag, system, repo))
   }
 }
